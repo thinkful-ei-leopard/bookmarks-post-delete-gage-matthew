@@ -18,7 +18,7 @@ const serializeBookmark = bookmark => ({
 });
 
 bookmarksRouter
-  .route('/bookmarks')
+  .route('/api/bookmarks')
   .get((req, res, next) => {
     const knexInstance = req.app.get('db');
     BookmarksService.getAllBookmarks(knexInstance)
@@ -58,15 +58,15 @@ bookmarksRouter
       .then(bookmark => {
         logger.info(`Bookmark with id ${bookmark.id} created.`);
         res.status(201)
-          .location(`/bookmarks/${bookmark.id}`)
+          .location(`/api/bookmarks/${bookmark.id}`)
           .json(serializeBookmark(bookmark));
       })
       .catch(next);
   });
 
 bookmarksRouter
-  .route('/bookmarks/:id')
-  .get((req,res, next) => {
+  .route('/api/bookmarks/:id')
+  .all((req,res, next) => {
     const { id } = req.params;
     BookmarksService.getBookmarkById(req.app.get('db'), id)
       .then(bookmark => {
@@ -76,9 +76,13 @@ bookmarksRouter
             .status(404)
             .send('Bookmark not found');
         }
-        res.json(serializeBookmark(bookmark));
+        res.bookmark = bookmark;
+        next();
       })
       .catch(next);
+  })
+  .get((req, res) => {
+    res.json(serializeBookmark(bookmark))
   })
   .delete((req, res, next) => {
     const { id } = req.params;
@@ -94,6 +98,20 @@ bookmarksRouter
         }
       })
       .catch(next);
+  })
+  .patch(bodyParser, (req, res, next) => {
+    const { title, url, description, rating } = req.body;
+    const bookmarkToUpdate = { title, url, description, rating};
+    
+    BookmarksService.updateBookmark(
+      req.app.get('db'),
+      req.params.bookmark_id,
+      bookmarkToUpdate
+    )
+      .then(numFieldsAffected => {
+        res.status(204).end()
+      })
+      .catch(next)
   });
   
 module.exports = bookmarksRouter;
